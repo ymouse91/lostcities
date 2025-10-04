@@ -115,19 +115,7 @@
         </div>
       </div>
 
-      <div class="row label">Nostot</div>
-      <div class="drawRow">
-        <button class="deck btn" id="drawDeck">Nosta pakasta <span id="deckCount">52</span></button>
-        <div class="or">tai</div>
-        <div class="drawDiscards">
-          <button class="btn small drawPile" data-suit="C">♣</button>
-          <button class="btn small drawPile" data-suit="H">♥</button>
-          <button class="btn small drawPile" data-suit="S">♠</button>
-          <button class="btn small drawPile" data-suit="D">♦</button>
-        </div>
-      </div>
-
-      <div class="row label">Käsi (7 korttia)</div>
+     <div class="row label">Käsi (7 korttia)</div>
       <div class="hand" id="playerHand">
         <div class="card black">A♣</div>
         <div class="card red">5♥</div>
@@ -138,19 +126,40 @@
         <div class="card black">K♠</div>
       </div>
 
-      <div class="actions" id="actions">
-  
-        <div class="actionBtns">
-          <button class="btn play" id="playBtn">Pelaa</button>
-          <button class="btn warn" id="discardBtn">Hylkää</button>
-          <button class="btn ghost" id="cancelSelect" style="display:none">Peru</button>
-        </div>      
-		<div>Valittu: <span id="selectedCard">10♦</span></div>
-      </div>
+<div class="actions" id="actions"
+     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+
+  <div class="actionBtns" style="display:flex; gap:6px;">
+    <button class="btn play" id="playBtn">Pelaa</button>
+    <button class="btn warn" id="discardBtn">Hylkää</button>
+    <button class="btn ghost" id="cancelSelect" style="display:none">Peru</button>
+  </div>
+
+  <div>Valittu: <span id="selectedCard">10♦</span></div>
+
+  <div class="drawRow"
+       style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
+    <button class="deck btn" id="drawDeck">
+      Nosta pakasta <span id="deckCount">52</span>
+    </button>
+    <div class="or">tai</div>
+    <div class="drawDiscards" style="display:flex; gap:6px;">
+      <button class="btn small drawPile" data-suit="C">♣</button>
+      <button class="btn small drawPile" data-suit="H">♥</button>
+      <button class="btn small drawPile" data-suit="S">♠</button>
+      <button class="btn small drawPile" data-suit="D">♦</button>
+    </div>
+  </div>
+
+</div>
+
+
+
 
       <div class="status" id="status">
         Tervetuloa! Pelaa kortti → nosta kortti. Pelaat ensin.
       </div>
+	  
     </section>
   </main>
 

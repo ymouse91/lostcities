@@ -167,7 +167,7 @@ function renderAll(msg){
   if(msg) el.status.textContent = msg;
 }
 
-function prettyCard(c){ return `${c.rank}${SUIT_SYM[c.suit]}${c.wager?' (panos)':''}`; }
+function prettyCard(c){ return `${c.rank}${SUIT_SYM[c.suit]}${c.wager?'':''}`; }
 function selectPlayerCard(idx){ state.selectedIndex = idx===state.selectedIndex? null : idx; renderAll(); }
 
 function playerPlaySelected(){
