@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lost Cities – Solo (PWA)</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#222222">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js'));
+    }
+  </script>
+
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Lost Cities – Solo vs AI</div>
+    <div class="meta">
+      <span id="date">04.10.2025</span>
+      <button id="newGameBtn" class="btn">Uusi peli</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="board">
+      <div class="row label">Vastustajan retket</div>
+      <div class="expeditions" id="expeditionsAI">
+        <div class="expCol">
+          <div class="expHeader"><span class="suit black">♣</span><span>AI</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+        <div class="expCol">
+          <div class="expHeader"><span class="suit red">♥</span><span>AI</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+        <div class="expCol">
+          <div class="expHeader"><span class="suit black">♠</span><span>AI</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+        <div class="expCol">
+          <div class="expHeader"><span class="suit red">♦</span><span>AI</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row label">Poistopinot</div>
+      <div class="discards" id="discards">
+        <div class="discard" data-suit="C">
+          <div class="suit black">♣</div>
+          <div class="topCard" id="topC"></div>
+          <div class="pileCount" id="pileC">0</div>
+        </div>
+        <div class="discard" data-suit="H">
+          <div class="suit red">♥</div>
+          <div class="topCard" id="topH"></div>
+          <div class="pileCount" id="pileH">0</div>
+        </div>
+        <div class="discard" data-suit="S">
+          <div class="suit black">♠</div>
+          <div class="topCard" id="topS"></div>
+          <div class="pileCount" id="pileS">0</div>
+        </div>
+        <div class="discard" data-suit="D">
+          <div class="suit red">♦</div>
+          <div class="topCard" id="topD"></div>
+          <div class="pileCount" id="pileD">0</div>
+        </div>
+      </div>
+
+      <div class="row label">Pelaajan retket</div>
+      <div class="expeditions" id="expeditionsPlayer">
+        <div class="expCol">
+          <div class="expHeader"><span class="suit black">♣</span><span>Sinä</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+        <div class="expCol">
+          <div class="expHeader"><span class="suit red">♥</span><span>Sinä</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+        <div class="expCol">
+          <div class="expHeader"><span class="suit black">♠</span><span>Sinä</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+        <div class="expCol">
+          <div class="expHeader"><span class="suit red">♦</span><span>Sinä</span></div>
+          <div class="lanes">
+            <div class="lane"></div>
+            <div class="lane"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row label">Nostot</div>
+      <div class="drawRow">
+        <button class="deck btn" id="drawDeck">Nosta pakasta <span id="deckCount">52</span></button>
+        <div class="or">tai</div>
+        <div class="drawDiscards">
+          <button class="btn small drawPile" data-suit="C">♣</button>
+          <button class="btn small drawPile" data-suit="H">♥</button>
+          <button class="btn small drawPile" data-suit="S">♠</button>
+          <button class="btn small drawPile" data-suit="D">♦</button>
+        </div>
+      </div>
+
+      <div class="row label">Käsi (7 korttia)</div>
+      <div class="hand" id="playerHand">
+        <div class="card black">A♣</div>
+        <div class="card red">5♥</div>
+        <div class="card black">7♠</div>
+        <div class="card red sel">10♦</div>
+        <div class="card black">J♣</div>
+        <div class="card red">Q♥</div>
+        <div class="card black">K♠</div>
+      </div>
+
+      <div class="actions" id="actions">
+  
+        <div class="actionBtns">
+          <button class="btn play" id="playBtn">Pelaa</button>
+          <button class="btn warn" id="discardBtn">Hylkää</button>
+          <button class="btn ghost" id="cancelSelect" style="display:none">Peru</button>
+        </div>      
+		<div>Valittu: <span id="selectedCard">10♦</span></div>
+      </div>
+
+      <div class="status" id="status">
+        Tervetuloa! Pelaa kortti → nosta kortti. Pelaat ensin.
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Ässä = 1, JQK = panos (ennen numeroita). Retket nousevassa järjestyksessä.
+  </footer>
+    <script src="app.js"></script>
+</body>
+</html>
