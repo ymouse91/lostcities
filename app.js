@@ -168,9 +168,14 @@ function renderAll(msg){
 }
 
 function prettyCard(c){ return `${c.rank}${SUIT_SYM[c.suit]}${c.wager?'':''}`; }
-function selectPlayerCard(idx){ state.selectedIndex = idx===state.selectedIndex? null : idx; renderAll(); }
+function selectPlayerCard(idx){
+  if(state.gameOver) return; // estä valinta pelin päätyttyä
+  if(!(state.turn==='player' && state.phase==='play')) return; // valinta vain oman pelivuoron pelivaiheessa
+  state.selectedIndex = (idx===state.selectedIndex) ? null : idx;
+  renderAll();
+}
 
-function playerPlaySelected(){
+function playerPlaySelected(){ if(state.gameOver) return;
   const idx=state.selectedIndex; if(idx==null) return;
   const card=state.player.hand[idx];
   const exp=state.player.expeditions[card.suit];
@@ -181,7 +186,7 @@ function playerPlaySelected(){
   renderAll(`Pelasit ${prettyCard(card)} → nosta.`);
 }
 
-function playerDiscard(){
+function playerDiscard(){ if(state.gameOver) return;
   const idx=state.selectedIndex; if(idx==null) return;
   const card=state.player.hand[idx]; state.player.hand.splice(idx,1); discard(card); state.selectedIndex=null;
   if(state.finalPlacements!=null){ renderAll(`Hylkäsit ${prettyCard(card)}.`); if(spendFinalPlacement()) return; state.turn='ai'; state.phase='play'; setTimeout(aiTurn,300); return; }
@@ -189,11 +194,11 @@ function playerDiscard(){
   renderAll(`Hylkäsit ${prettyCard(card)} → nosta.`);
 }
 
-function playerDrawDeck(){ if(state.finalPlacements!=null) return; if(state.finalPlacements!=null) return;
+function playerDrawDeck(){ if(state.gameOver) return; if(state.finalPlacements!=null) return; if(state.finalPlacements!=null) return;
   if(!(state.phase==='draw' && state.turn==='player')) return; if(state.deck.length===0) return;
   drawFromDeck(state.player);   state.phase='play'; state.turn='ai'; renderAll('Nostit pakasta. AI:n vuoro.'); setTimeout(aiTurn,400);
 }
-function playerDrawDiscard(suit){ if(state.finalPlacements!=null) return; if(state.finalPlacements!=null) return;
+function playerDrawDiscard(suit){ if(state.gameOver) return; if(state.finalPlacements!=null) return; if(state.finalPlacements!=null) return;
   if(!(state.phase==='draw' && state.turn==='player')) return; if(state.discards[suit].length===0) return;
   drawFromDiscard(state.player, suit);   state.phase='play'; state.turn='ai'; renderAll(`Nostit poistosta ${SUIT_SYM[suit]}. AI:n vuoro.`); setTimeout(aiTurn,400);
 }
@@ -519,6 +524,7 @@ function aiChoosePlay(){
       else { if (mayPlayFirstWager(s)) openPlays.push({index: wagIdx, suit:s}); }
     }
 
+
     let bestIdx = -1, bestVal = 99;
     for (let i=0;i<hand.length;i++){
       const c = hand[i];
@@ -527,7 +533,23 @@ function aiChoosePlay(){
       if (c.value===8 && !allow8) continue;
       if (c.value < bestVal){ bestVal=c.value; bestIdx=i; }
     }
-    if (bestIdx>=0) openPlays.push({index: bestIdx, suit:s});
+    if (bestIdx>=0){
+      const rem = estimateRemainingAIPlays();
+      const handSure = (f.sumNow + f.handAsc.reduce((a,b)=>a+b,0) >= 20);
+      const MIN_OPEN_LATE = AI_PARAMS?.LATE_MIN_OPEN_VALUE ?? 5;
+      if (isLate && !handSure){
+        if (!(Number.isFinite(f.needWithRest) && rem >= f.needWithRest)){
+          // skip opening this suit in late game due to insufficient remaining plays
+        } else if (bestVal < MIN_OPEN_LATE){
+          // too small opening value in late game
+        } else {
+          openPlays.push({index: bestIdx, suit:s});
+        }
+      } else {
+        openPlays.push({index: bestIdx, suit:s});
+      }
+    }
+
   }
   if (openPlays.length){
     // valitse paras jatkopotentiaalilla
