@@ -23,6 +23,7 @@ const state = {
   phase: 'play',
   gameOver:false,
   finalPlacements:null,
+
 };
 
 function initExps(){ const e={}; for(const s of SUITS) e[s]={wagers:0, numbers:[]}; return e; }
@@ -151,7 +152,7 @@ function renderAll(msg){
   });
   renderDiscardPiles();
   renderExpeditions();
-  el.selected.textContent = state.selectedIndex==null ? '—' : prettyCard(state.player.hand[state.selectedIndex]);
+  el.selected.textContent = state.selectedIndex==null ? '–' : prettyCard(state.player.hand[state.selectedIndex]);
   const canPlay = (()=>{
     if(!(state.turn==='player' && state.phase==='play' && state.selectedIndex!=null)) return false;
     const card = state.player.hand[state.selectedIndex];
@@ -185,7 +186,7 @@ function playerPlaySelected(){ if(state.gameOver) return;
   renderAll(`Pelasit ${prettyCard(card)} → nosta.`);
 }
 
-function playerDiscard(){if(state.gameOver) return;
+function playerDiscard(){ if(state.gameOver) return;
   const idx=state.selectedIndex; if(idx==null) return;
   const card=state.player.hand[idx]; state.player.hand.splice(idx,1); discard(card); state.selectedIndex=null;
   if(state.finalPlacements!=null){ renderAll(`Hylkäsit ${prettyCard(card)}.`); if(spendFinalPlacement()) return; state.turn='ai'; state.phase='play'; setTimeout(aiTurn,300); return; }
@@ -197,34 +198,31 @@ function playerDrawDeck(){ if(state.gameOver) return; if(state.finalPlacements!=
   if(!(state.phase==='draw' && state.turn==='player')) return; if(state.deck.length===0) return;
   drawFromDeck(state.player);   state.phase='play'; state.turn='ai'; renderAll('Nostit pakasta. AI:n vuoro.'); setTimeout(aiTurn,400);
 }
-function playerDrawDiscard(suit){if(state.gameOver) return;  if(state.finalPlacements!=null) return; if(state.finalPlacements!=null) return;
+function playerDrawDiscard(suit){ if(state.gameOver) return; if(state.finalPlacements!=null) return; if(state.finalPlacements!=null) return;
   if(!(state.phase==='draw' && state.turn==='player')) return; if(state.discards[suit].length===0) return;
   drawFromDiscard(state.player, suit);   state.phase='play'; state.turn='ai'; renderAll(`Nostit poistosta ${SUIT_SYM[suit]}. AI:n vuoro.`); setTimeout(aiTurn,400);
 }
 document.getElementById('drawDeck').onclick = playerDrawDeck;
 
 function scoreExp(exp){
-  // Ei yhtään pelattua korttia → 0 pistettä, ei -20
-  if(exp.numbers.length === 0) return 0;
-
+  // FIX: if no numbers played, score = 0 (no -20 penalty)
+  if(exp.numbers.length===0) return 0;
   const sum = exp.numbers.reduce((a,b)=>a+b,0);
-  const wagers = exp.wagers || 0;
-  const mult = 1 + wagers;
-  const cardCount = exp.numbers.length + wagers;
-
-  // Oikea järjestys: kerroin ensin, sitten -20
-  let pts = sum * mult - 20;
-  if (cardCount >= 8) pts += 20;  // +20 bonus pitkälle retkelle
-
-  return pts;
+  let pts = sum - 20; let mult=1;
+  if(exp.wagers===1) mult=2; else if(exp.wagers===2) mult=3; else if(exp.wagers>=3) mult=4;
+  if(exp.numbers.length>=8) pts += 20;
+  return pts*mult;
 }
-
 function totalScore(owner){ return SUITS.map(s=>scoreExp(owner.expeditions[s])).reduce((a,b)=>a+b,0); }
 
+/* removed tickFinalTurns */
+
 function endGame(){
-  const p=totalScore(state.player), a=totalScore(state.ai);
+const p=totalScore(state.player), a=totalScore(state.ai);
   state.gameOver=true;
-  document.getElementById('status').innerHTML = `Pakka loppui. <b>Pisteet:</b> Sinä ${p} — AI ${a}. ` + (p>a?'Voitit!':'Hävisit.');
+  document.getElementById('status').innerHTML = `Pakka loppui. <b>Pisteet:</b> Sinä ${p
+}
+ – AI ${a}. ` + (p>a?'Voitit!':'Hävisit.');
   document.getElementById('drawDeck').disabled=true;
   document.querySelectorAll('.drawPile,#playBtn,#discardBtn').forEach(b=>b.disabled=true);
   return true;
@@ -232,32 +230,38 @@ function endGame(){
 
 /* ===== AI ===== */
 const AI_PARAMS = {
-  START_BASE: 0,
-  SMALL_START_PENALTY: 40,
+  START_BASE: 4,
+  SMALL_START_PENALTY: 16,
   SUPPORT_MIN: 3,
-  PLAY_PROGRESS_BONUS: 10,
-  CHAIN_BONUS: 14,
+
+  PLAY_PROGRESS_BONUS: 11,
+  CHAIN_BONUS: 7,
   SAFE_HIGH_PLAY_THRESHOLD: 20,
   HIGH_CARD_GAP_PENALTY: 12,
-  GAP_PENALTY_PER_STEP: 8,
-  EARLY_HIGH_CARD_PENALTY: 4,
-  WAGER_PLAY_BONUS: 2,
+  GAP_PENALTY_PER_STEP: 4,
+  JUMP_PENALTY_CAP: 30,					   
+  EARLY_HIGH_CARD_PENALTY: 8,
+
+  WAGER_PLAY_BONUS: 8,
   WAGER_MIN_HIGH_SUPPORT: 3,
-  WAGER_MARGIN: 16,
-  DISCARD_BASE_PENALTY: 3,
+  WAGER_MARGIN: 12,
+
+  DISCARD_BASE_PENALTY: 8,
   DISCARD_OWN_SUIT_PENALTY: 5,
-  DISCARD_FEED_OPP_PENALTY: 8,
+  DISCARD_FEED_OPP_PENALTY: 7,
   DISCARD_HIGH_CARD_EXTRA: 4,
-  TAKE_IMMEDIATE_PLAY_BONUS: 1,
+
+  TAKE_IMMEDIATE_PLAY_BONUS: 10,
   TAKE_CHAIN_TOP_BONUS: 6,
   TAKE_BLOCK_OPP_BONUS: 4,
   BLIND_DRAW_VALUE: 9,
-  LATE_GAME_DECK_THRESHOLD: 12,
-  LATE_GAME_PLAY_PUSH: 9,
+
+  LATE_GAME_DECK_THRESHOLD: 9,
+  LATE_GAME_PLAY_PUSH: 5,
   LATE_GAME_DISCARD_PENALTY: 3,
-  LATE_MIN_OPEN_VALUE: 5,
-  OPP_STARTED_WEIGHT: 10,
-  FOCUS_STARTED_BONUS: 15,
+
+  OPP_STARTED_WEIGHT: 3,
+  FOCUS_STARTED_BONUS: 10,
 };
 
 function aiFocusSuits(){
@@ -287,11 +291,12 @@ function aiFocusSuits(){
   return SUITS.slice().sort((a,b)=>scores[b]-scores[a]);
 }
 
+
 function aiChoosePlay(){
   const hand = state.ai.hand || [];
   const myExped = state.ai.expeditions || {};
   const oppExped = state.player.expeditions || {};
-  const isLate = (state.deck?.length||0) <= AI_PARAMS.LATE_GAME_DECK_THRESHOLD;
+  const isLate = (state.deck?.length||0) <= (AI_PARAMS?.LATE_GAME_DECK_THRESHOLD ?? 8);
 
   const SUIT_LIST = (typeof SUITS !== 'undefined' && Array.isArray(SUITS) && SUITS.length)
     ? SUITS.slice()
@@ -301,9 +306,6 @@ function aiChoosePlay(){
   function lastOf(ex){ return (isStarted(ex)) ? ex.numbers[ex.numbers.length-1] : null; }
   function sumOf(ex){ return (ex && Array.isArray(ex.numbers)) ? ex.numbers.reduce((a,b)=>a+b,0) : 0; }
   function estimateRemainingAIPlays(){ const N = state.deck ? state.deck.length : 0; return (N<=0) ? 1 : 2 + Math.floor(Math.max(0,N-1)/2); }
-  function activeOpenCount(){
-    let n=0; for (const s of SUIT_LIST){ const ex = myExped[s]; if (isStarted(ex) && sumOf(ex) < 20) n++; } return n;
-  }
 
   function handNumsOver(suit, minExclusive){
     const arr = [];
@@ -313,16 +315,6 @@ function aiChoosePlay(){
     }
     arr.sort((a,b)=>a.c.value - b.c.value);
     return arr;
-  }
-  function countChains(suit){
-    const vals = hand.filter(c=>c.suit===suit && !c.wager).map(c=>c.value).sort((a,b)=>a-b);
-    let chains=0; for(let i=0;i<vals.length-1;i++) if(vals[i]+1===vals[i+1]) chains++;
-    return chains;
-  }
-  function supportCount(suit){
-    const ex = myExped[suit];
-    const last = lastOf(ex);
-    return hand.filter(c=>c.suit===suit && !c.wager && (last==null || c.value>last)).length;
   }
   function has9and10InHand(suit){
     let has9=false, has10=false;
@@ -379,6 +371,9 @@ function aiChoosePlay(){
     const f = feasible20(suit); if (!f.feasible) return false;
     return (f.sumNow + f.handAsc.reduce((a,b)=>a+b,0) >= 20);
   }
+  function activeOpenCount(){
+    let n=0; for (const s of SUIT_LIST){ const ex = myExped[s]; if (isStarted(ex) && sumOf(ex) < 20) n++; } return n;
+  }
   function canPlayToExp(ex, card){
     if (card.wager) return !isStarted(ex);
     const lo = lastOf(ex); return (lo==null) ? true : (card.value > lo);
@@ -396,36 +391,20 @@ function aiChoosePlay(){
     const allow8 = has9and10InHand(s);
     const handAscObjs = handNumsOver(s, lastOf(ex)).filter(x=>!opponentTakenSet(s).has(x.c.value));
     const openableAsc = started ? handAscObjs
-      : handAscObjs.filter(o => (o.c.value < 8) || (o.c.value===8 && allow8)); 
+      : handAscObjs.filter(o => (o.c.value < 8) || (o.c.value===8 && allow8)); // 9/10 ei avaa; 8 vain jos 9&10 kädessä
 
     const handSure = (f.sumNow + f.handAsc.reduce((a,b)=>a+b,0) >= 20);
     if (handSure && openableAsc.length){
       const wagIdx = (!started) ? hand.findIndex(c=>c.suit===s && c.wager) : -1;
       if (!started && wagIdx>=0){
-        // Tarkista onko wager-alku järkevää
-        const wagersPlayed = ex.wagers || 0;
-        const minSupport = wagersPlayed === 0 ? AI_PARAMS.WAGER_MIN_HIGH_SUPPORT : 2;
-        const support = supportCount(s);
-        if (support >= minSupport){
-          strongPlays.push({index: wagIdx, suit:s, bonus: AI_PARAMS.WAGER_PLAY_BONUS});
-        } else {
-          strongPlays.push({index: openableAsc[0].index, suit:s, bonus: 0});
-        }
-      } else if (!started && wagIdx < 0){
-        strongPlays.push({index: openableAsc[0].index, suit:s, bonus: 0});
+        strongPlays.push({index: wagIdx, suit:s});
       } else {
-        // Started expedition - bonus for progress
-        const progress = ex.numbers.length;
-        const bonus = progress >= 3 ? AI_PARAMS.PLAY_PROGRESS_BONUS : 0;
-        strongPlays.push({index: openableAsc[0].index, suit:s, bonus});
+        strongPlays.push({index: openableAsc[0].index, suit:s});
       }
     }
   }
   if (strongPlays.length){
     strongPlays.sort((a,b)=>{
-      // Priorisoi bonus
-      if (b.bonus !== a.bonus) return b.bonus - a.bonus;
-      
       const sA=a.suit, sB=b.suit;
       const sumA=sumOf(myExped[sA]||{numbers:[]});
       const sumB=sumOf(myExped[sB]||{numbers:[]});
@@ -435,37 +414,22 @@ function aiChoosePlay(){
       const vA=hand[a.index].value??0, vB=hand[b.index].value??0;
       const chainA=(lastA!=null && vA===lastA+1)?1:0;
       const chainB=(lastB!=null && vB===lastB+1)?1:0;
-      // Chain bonus
-      if (chainB!==chainA) return (chainB - chainA) * AI_PARAMS.CHAIN_BONUS;
+      if (chainB!==chainA) return chainB-chainA;
       // GAP penalty: pienempi hyppy parempi
       const gapA = (lastA!=null) ? Math.max(0, vA - lastA - 1) : 0;
       const gapB = (lastB!=null) ? Math.max(0, vB - lastB - 1) : 0;
-      if (gapA!==gapB) return gapA - gapB;											
-      return vA-vB;
-    });
+      if (gapA!==gapB) return gapA - gapB;
+      return vA - vB;
+	  });
     // Estä varhainen 10 ellei vie heti >20
     for (const cand of strongPlays){
       const c = hand[cand.index];
       const ex = myExped[cand.suit] || {numbers:[]};
       const sumNow = sumOf(ex);
-	  // UUSI: Tarkista myös 8-9 kortit
-	  if (!c.wager && c.value >= 8 && c.value < 10){
-        const safeToPlay = (sumNow >= AI_PARAMS.SAFE_HIGH_PLAY_THRESHOLD); // <-- TÄSSÄ
-        if (!safeToPlay && ex.numbers.length <= 2 && !isLate) continue;
-      }
       if (!c.wager && c.value===10){
         const early = (ex.numbers.length <= 1);
         const makesPositive = (sumNow + 10 > 20);
         if (early && !makesPositive && !isLate) continue;
-      }
-	  
-      // Tarkista high card gap penalty
-      if (!c.wager && c.value >= 8){
-        const last = lastOf(ex);
-        if (last != null && c.value - last > 2){
-          const gapPenalty = (c.value - last - 1) * AI_PARAMS.GAP_PENALTY_PER_STEP;
-          if (gapPenalty > AI_PARAMS.HIGH_CARD_GAP_PENALTY && ex.numbers.length < 3) continue;
-        }
       }
       return { kind:'play', index:cand.index, suit:cand.suit };
     }
@@ -484,45 +448,19 @@ function aiChoosePlay(){
 
     const sumNow = f.sumNow;
     const first = nums[0];
-    const last = lastOf(ex);
-    
-    // Ketjubonus
-    const isChain = (first.c.value === (last??0) + 1);
-    const chainBonus = isChain ? AI_PARAMS.CHAIN_BONUS : 0;
-    
-    // Progressbonus
-    const progressBonus = ex.numbers.length >= 3 ? AI_PARAMS.PLAY_PROGRESS_BONUS : 0;
-    
-    // Loppupelissä push
-    const lateBonus = isLate ? AI_PARAMS.LATE_GAME_PLAY_PUSH : 0;
-    
     if (first.c.value===10 && !(sumNow + 10 > 20)){
-      const chain = nums.find(x=>x.c.value === (last??0)+1 && x.c.value!==10);
-      if (chain){ 
-        extendPlays.push({index: chain.index, suit:s, bonus: chainBonus + progressBonus + lateBonus}); 
-      } else {
+      const chain = nums.find(x=>x.c.value === (lastOf(ex)??0)+1 && x.c.value!==10);
+      if (chain){ extendPlays.push({index: chain.index, suit:s}); }
+      else {
         const next = nums.find(x=>x.c.value!==10);
-        if (next) extendPlays.push({index: next.index, suit:s, bonus: progressBonus + lateBonus});
+        if (next) extendPlays.push({index: next.index, suit:s});
       }
-} else if (first.c.value >= 8 && first.c.value < 10) {
-  // UUSI: Tarkista onko turvallista pelata 8 tai 9
-  const safeSum = (sumNow >= AI_PARAMS.SAFE_HIGH_PLAY_THRESHOLD); // <-- TÄSSÄ
-  if (!safeSum && ex.numbers.length <= 2) {
-    // Etsi pienempi kortti pelattavaksi ensin
-    const safer = nums.find(x => x.c.value < 8);
-    if (safer) {
-      extendPlays.push({index: safer.index, suit:s, bonus: chainBonus + progressBonus + lateBonus});
-      continue;
+    } else {
+      extendPlays.push({index: first.index, suit:s});
     }
-  }
-  extendPlays.push({index: first.index, suit:s, bonus: chainBonus + progressBonus + lateBonus});
-}
   }
   if (extendPlays.length){
     extendPlays.sort((a,b)=>{
-      // Priorisoi bonus
-      if (b.bonus !== a.bonus) return b.bonus - a.bonus;
-      
       const sA=a.suit, sB=b.suit;
       const sumA=sumOf(myExped[sA]||{numbers:[]});
       const sumB=sumOf(myExped[sB]||{numbers:[]});
@@ -533,10 +471,11 @@ function aiChoosePlay(){
       const chainA=(lastA!=null && vA===lastA+1)?1:0;
       const chainB=(lastB!=null && vB===lastB+1)?1:0;
       if (chainB!==chainA) return chainB-chainA;
+      // GAP penalty: pienempi hyppy parempi
       const gapA = (lastA!=null) ? Math.max(0, vA - lastA - 1) : 0;
       const gapB = (lastB!=null) ? Math.max(0, vB - lastB - 1) : 0;
-      if (gapA!==gapB) return gapA - gapB;																									   
-      return vA-vB;						 
+      if (gapA!==gapB) return gapA - gapB;
+      return vA - vB;			 
     });
     return { kind:'play', index: extendPlays[0].index, suit: extendPlays[0].suit };
   }
@@ -557,6 +496,7 @@ function aiChoosePlay(){
   }
 
   // --- 3) Avaus (max 2 aktiivista, mutta sallittu kolmas jos EI jatkosiirtoa nyt ja kädellä varma ≥20) ---
+  // Onko jatkosiirtoa olemassa kahteen avoimeen nyt?
   let hasExtendNow = false;
   for (const s of SUIT_LIST){
     const ex = myExped[s] || {numbers:[]};
@@ -586,97 +526,43 @@ function aiChoosePlay(){
       if (!handSure) continue;
     }
 
-    // Tarkista onko vastustaja aloittanut tämän maan
-    const oppStarted = isStarted(oppExped[s]);
-    const oppWeight = oppStarted ? AI_PARAMS.OPP_STARTED_WEIGHT : 0;
-
     const wagIdx = hand.findIndex(c=>c.suit===s && c.wager);
     if (wagIdx>=0){
       const wagersPlayed = ex?.wagers ?? 0;
-      const minSupport = wagersPlayed === 0 ? AI_PARAMS.WAGER_MIN_HIGH_SUPPORT : 2;
-      const support = supportCount(s);
-      
-      if (wagersPlayed >= 1){ 
-        if (mayPlaySecondWager(s) && support >= 2) {
-          openPlays.push({index: wagIdx, suit:s, bonus: AI_PARAMS.WAGER_PLAY_BONUS - oppWeight});
+      if (wagersPlayed >= 1){ if (mayPlaySecondWager(s)) openPlays.push({index: wagIdx, suit:s}); }
+      else { if (mayPlayFirstWager(s)) openPlays.push({index: wagIdx, suit:s}); }
+    }
+
+
+    let bestIdx = -1, bestVal = 99;
+    for (let i=0;i<hand.length;i++){
+      const c = hand[i];
+      if (c.suit!==s || c.wager) continue;
+      if (c.value===9 || c.value===10) continue;
+      if (c.value===8 && !allow8) continue;
+      if (c.value < bestVal){ bestVal=c.value; bestIdx=i; }
+    }
+    if (bestIdx>=0){
+      const rem = estimateRemainingAIPlays();
+      const handSure = (f.sumNow + f.handAsc.reduce((a,b)=>a+b,0) >= 20);
+      const MIN_OPEN_LATE = AI_PARAMS?.LATE_MIN_OPEN_VALUE ?? 5;
+      if (isLate && !handSure){
+        if (!(Number.isFinite(f.needWithRest) && rem >= f.needWithRest)){
+          // skip opening this suit in late game due to insufficient remaining plays
+        } else if (bestVal < MIN_OPEN_LATE){
+          // too small opening value in late game
+        } else {
+          openPlays.push({index: bestIdx, suit:s});
         }
-      } else { 
-        if (mayPlayFirstWager(s) && support >= minSupport) {
-          openPlays.push({index: wagIdx, suit:s, bonus: AI_PARAMS.WAGER_PLAY_BONUS - oppWeight});
-        }
+      } else {
+        openPlays.push({index: bestIdx, suit:s});
       }
     }
 
-    let bestIdx = -1, bestVal = 99;
-
-
-
-// Laske support ennen looppia
-const support = supportCount(s);
-
-for (let i=0;i<hand.length;i++){
-  const c = hand[i];
-  if (c.suit!==s || c.wager) continue;
-  if (c.value===9 || c.value===10) continue;
-  if (c.value===8 && !allow8) continue;
-  
-  // Penalty korkealle kortille varhaisessa avauksessa
-  let penalty = 0;
-  if (c.value >= 7 && !isLate){
-    penalty = AI_PARAMS.EARLY_HIGH_CARD_PENALTY;
-  }
-  
-  // UUSI: Lisärangaistus pienille korteille (2-3), jotka eivät anna hyvää lähtöä
-  if (c.value <= 3 && support < AI_PARAMS.SUPPORT_MIN) {
-    penalty += AI_PARAMS.SMALL_START_PENALTY;  // <-- TÄSSÄ
-  }
-  
-  const effectiveVal = c.value + penalty;
-  if (effectiveVal < bestVal){ bestVal=effectiveVal; bestIdx=i; }
-}
-
-if (bestIdx >= 0) {
-  // --- A-osan logiikka: bonusten laskenta ---
-  const baseBonus = AI_PARAMS.START_BASE;
-  const support = supportCount(s);
-  const chains = countChains(s);
-  const supportBonus = support >= AI_PARAMS.SUPPORT_MIN ? support * 2 : 0;
-  const chainBonus = chains * AI_PARAMS.CHAIN_BONUS;
-  const totalBonus = baseBonus + supportBonus + chainBonus - oppWeight;
-
-  // --- B-osan logiikka: myöhäisen pelin suodatus ---
-  const rem = estimateRemainingAIPlays();
-  const handSure = (f.sumNow + f.handAsc.reduce((a,b)=>a+b,0) >= 20);
-  const MIN_OPEN_LATE = AI_PARAMS?.LATE_MIN_OPEN_VALUE ?? 5;
-  const isLate = (state.deck?.length || 0) <= AI_PARAMS.LATE_GAME_DECK_THRESHOLD;
-
-  let allowOpen = true;
-
-  if (isLate && !handSure) {
-    if (!(Number.isFinite(f.needWithRest) && rem >= f.needWithRest)) {
-      // liian vähän siirtoja jäljellä → älä avaa
-      allowOpen = false;
-    } else if (bestVal < MIN_OPEN_LATE) {
-      // liian heikko arvo myöhäisessä pelissä → älä avaa
-      allowOpen = false;
-    }
-  }
-
-  // --- Lopullinen päätös ---
-  if (allowOpen) {
-    openPlays.push({
-      index: bestIdx,
-      suit: s,
-      bonus: totalBonus
-    });
-  }
-}
   }
   if (openPlays.length){
+    // valitse paras jatkopotentiaalilla
     openPlays.sort((a,b)=>{
-      // Priorisoi bonus
-      if (b.bonus !== a.bonus) return b.bonus - a.bonus;
-      
       const sA=a.suit, sB=b.suit;
       const valsA = hand.filter(c=>c.suit===sA && !c.wager && hand.indexOf(c)!==a.index).map(c=>c.value).sort((x,y)=>x-y);
       const valsB = hand.filter(c=>c.suit===sB && !c.wager && hand.indexOf(c)!==b.index).map(c=>c.value).sort((x,y)=>x-y);
@@ -688,14 +574,14 @@ if (bestIdx >= 0) {
   }
 
   // --- 4) Viimeinen vaihtoehto: yksinkertainen discard (placeholder) ---
-  return aiChooseDiscard();
+return aiChooseDiscard();
 }
 
 function aiChooseDiscard(){
   const hand = state.ai.hand || [];
   const myExped = state.ai.expeditions || {};
   const oppExped = state.player.expeditions || {};
-  const isLate = (state.deck?.length||0) <= AI_PARAMS.LATE_GAME_DECK_THRESHOLD;
+  const isLate = (state.deck?.length||0) <= (AI_PARAMS?.LATE_GAME_DECK_THRESHOLD ?? 8);
 
   const SUIT_LIST = (typeof SUITS !== 'undefined' && Array.isArray(SUITS) && SUITS.length)
     ? SUITS.slice()
@@ -748,7 +634,7 @@ function aiChooseDiscard(){
       needFromHand
     };
   }
-  // "ruokin vastustajaa" -mittari
+  // “ruokin vastustajaa” -mittari
   function feedRisk(card){
     const s = card.suit; const opp = oppExped[s];
     if (!opp || !Array.isArray(opp.numbers)) return 0;
@@ -760,9 +646,9 @@ function aiChooseDiscard(){
     if (last==null) return 0;
     if (card.value <= last) return 0;
     // heti jatkoksi tai korkea hyödyllinen
-    let r = AI_PARAMS.DISCARD_FEED_OPP_PENALTY;
-    if (card.value === last+1) r += 2;
-    if (card.value >= 8) r += AI_PARAMS.DISCARD_HIGH_CARD_EXTRA;
+    let r = 1;
+    if (card.value === last+1) r += 1;
+    if (card.value >= 8) r += 1;
     return r;
   }
 
@@ -780,23 +666,12 @@ function aiChooseDiscard(){
 
     const f = feasible20(s);
     const risk = feedRisk(c);
-    
-    // Lisää base penalty + oman maan penalty
-    let penalty = AI_PARAMS.DISCARD_BASE_PENALTY;
-    if (isStarted(ex) && f.feasible){
-      penalty += AI_PARAMS.DISCARD_OWN_SUIT_PENALTY;
-    }
-    
-    // Loppupelin penalty
-    if (isLate){
-      penalty += AI_PARAMS.LATE_GAME_DISCARD_PENALTY;
-    }
 
     if (c.wager){
       const startedWithNumbers = isStarted(ex); // wageria ei voi enää pelata
       const uselessLate = isLate && !f.handSure; // loppupelissä ei varmaa ≥20-avausta kädellä
       if (startedWithNumbers || !f.feasible || uselessLate){
-        bucketWager.push({i, c, risk, penalty: penalty * 0.5}); // wagerit halvempia hylätä
+        bucketWager.push({i, c, risk});
         continue;
       }
       // muuten pidä wager toistaiseksi
@@ -805,16 +680,16 @@ function aiChooseDiscard(){
 
     // numerokortit
     if (isStarted(ex) && c.value <= last){
-      bucketUnplayable.push({i, c, risk, penalty});
+      bucketUnplayable.push({i, c, risk});
       continue;
     }
 
     if (!f.feasible){
-      bucketHopeless.push({i, c, risk, penalty: penalty * 0.8});
+      bucketHopeless.push({i, c, risk});
       continue;
     }
 
-    bucketOthers.push({i, c, risk, penalty});
+    bucketOthers.push({i, c, risk});
   }
 
   function pick(list, {preferSmall=true, avoidHighLate=true}={}){
@@ -828,13 +703,8 @@ function aiChooseDiscard(){
       const nonHigh = pool.filter(x=>!x.c.wager && x.c.value<=7);
       if (nonHigh.length) filtered = nonHigh;
     }
-    // 3) järjestä penalty + value mukaan
+    // 3) pienin arvo ensin
     filtered.sort((a,b)=>{
-      // Prioriteetti: pienin penalty + risk
-      const scoreA = (a.penalty || 0) + a.risk;
-      const scoreB = (b.penalty || 0) + b.risk;
-      if (scoreA !== scoreB) return scoreA - scoreB;
-      
       const av = a.c.wager ? -1 : a.c.value;
       const bv = b.c.wager ? -1 : b.c.value;
       if (preferSmall){
@@ -842,6 +712,8 @@ function aiChooseDiscard(){
       } else {
         if (av!==bv) return bv-av;
       }
+      // tiebreak: pienempi risk
+      if (a.risk!==b.risk) return a.risk-b.risk;
       // tiebreak: suit-ord
       return SUIT_LIST.indexOf(a.c.suit) - SUIT_LIST.indexOf(b.c.suit);
     });
@@ -856,18 +728,15 @@ function aiChooseDiscard(){
     pick(bucketOthers);
 
   if (!pickCand){
-    // fallback: mikä tahansa (mieluiten pienin penalty + risk + arvo)
-    const any = hand.map((c,i)=>({
-      i,
-      c,
-      risk:feedRisk(c),
-      penalty: AI_PARAMS.DISCARD_BASE_PENALTY
-    }));
+    // fallback: mikä tahansa (mieluiten pienin arvo ja matalin risk)
+    const any = hand.map((c,i)=>({i,c,risk:feedRisk(c)}));
     pickCand = pick(any) || {i:0, c:hand[0]};
   }
 
   return { kind:'discard', index: pickCand.i, suit: hand[pickCand.i]?.suit };
 }
+
+
 
 function aiChooseDraw(){
   const myExped   = state?.ai?.expeditions    || {};
@@ -875,7 +744,6 @@ function aiChooseDraw(){
   const discards  = state?.discards           || {};
   const hand      = state?.ai?.hand           || [];
   const deckSize  = (state?.deck?.length ?? 0);
-  const isLate    = deckSize <= AI_PARAMS.LATE_GAME_DECK_THRESHOLD;
 
   function isSameCard(a, b){
     if (!a || !b) return false;
@@ -975,8 +843,6 @@ function aiChooseDraw(){
     const last = lastOf(ex);
     const oppLast = lastOf(oppExped[s]);
     const started = Array.isArray(ex?.numbers) && ex.numbers.length>0;
-    
-    let score = 0; // korkeampi = parempi
 
     if (top.wager){
       if (started) continue; // ei wageria aloitetulle retkelle
@@ -984,91 +850,46 @@ function aiChooseDraw(){
       const vals = handValsForSuit(s, last);
       const needTo21 = minCardsToReach(sum0, vals, 21);
       if (Number.isFinite(needTo21) && haveTimeToPlayNeededCards(needTo21 + 1)){
-        score += AI_PARAMS.TAKE_IMMEDIATE_PLAY_BONUS;
-        discardOptions.push({ suit:s, top, reason:'wager_allowed', score });
+        discardOptions.push({ suit:s, top, reason:'wager_allowed' });
       }
       continue;
     }
 
     if (!started){
       if (canReachStrictPositiveUnstartedFromHand(s)){
-        score += AI_PARAMS.TAKE_IMMEDIATE_PLAY_BONUS;
-        discardOptions.push({ suit:s, top, reason:'unstarted_can_positive_from_hand', score });
+        discardOptions.push({ suit:s, top, reason:'unstarted_can_positive_from_hand' });
       }
     } else {
       if (top.value <= last) continue; // ei koskaan ≤ last
-      
-      // Immediate play bonus
-      score += AI_PARAMS.TAKE_IMMEDIATE_PLAY_BONUS;
-      
-      // Chain bonus
-      if (top.value === last + 1){
-        score += AI_PARAMS.TAKE_CHAIN_TOP_BONUS;
-      }
-      
-      // Block opponent bonus
-      if (oppLast != null && top.value > oppLast && top.value === oppLast + 1){
-        score += AI_PARAMS.TAKE_BLOCK_OPP_BONUS;
-      }
-      
       const okNonNeg = canReachNonNegativeStarted(s, top.value);
       let ok = okNonNeg;
       if (!ok){
-        if (top.value>6 && !(oppLast!=null && oppLast>6)){ 
-          ok = true; 
-          score += 3; // tempo play bonus
-        }
+        if (top.value>6 && !(oppLast!=null && oppLast>6)){ ok = true; }
       }
       if (ok){
-        discardOptions.push({ suit:s, top, reason: okNonNeg ? 'started_reaches_nonneg' : 'tempo_play_gt6', score });
+        discardOptions.push({ suit:s, top, reason: okNonNeg ? 'started_reaches_nonneg' : 'tempo_play_gt6' });
       }
     }
   }
 
-if (discardOptions.length) {
-  const priority = { 
-    'tempo_play_gt6': 3, 
-    'started_reaches_nonneg': 2, 
-    'unstarted_can_positive_from_hand': 1, 
-    'wager_allowed': 0 
-  };
-
-  discardOptions.sort((a, b) => {
-    // 1. reason-prioriteetti (strateginen painotus)
-    const pa = (priority[a.reason] ?? 0);
-    const pb = (priority[b.reason] ?? 0);
-    if (pb !== pa) return pb - pa;
-
-    // 2. score-arvo (taktinen hienosäätö)
-    if (b.score !== a.score) return b.score - a.score;
-
-    // 3. päällimmäisen kortin arvo (wager = -1, muuten kortin numero)
-    const va = a.top.wager ? -1 : a.top.value;
-    const vb = b.top.wager ? -1 : b.top.value;
-    if (vb !== va) return vb - va;
-
-    // 4. maajärjestys (deterministinen tiebreak)
-    return SUIT_LIST.indexOf(a.suit) - SUIT_LIST.indexOf(b.suit);
-  });
-
-  return { kind: 'discard', suit: discardOptions[0].suit };
-}
+  if (discardOptions.length){
+    const priority = { 'tempo_play_gt6':3, 'started_reaches_nonneg':2, 'unstarted_can_positive_from_hand':1, 'wager_allowed':0 };
+    discardOptions.sort((a,b)=>{
+      const pa=(priority[a.reason]??0), pb=(priority[b.reason]??0);
+      if (pb!==pa) return pb-pa;
+      const va=a.top.wager?-1:a.top.value, vb=b.top.wager?-1:b.top.value;
+      if (vb!==va) return vb-va;
+      return SUIT_LIST.indexOf(a.suit)-SUIT_LIST.indexOf(b.suit);
+    });
+    return { kind:'discard', suit: discardOptions[0].suit };
+  }
 
   return { kind:'deck' };
 }
 
-function spendFinalPlacement(){
-  if (state.finalPlacements != null){
-    state.finalPlacements--;
-    if (state.finalPlacements <= 0){ 
-      endGame(); 
-      return true;          // peli päättyi
-    }
-    return false;            // peli jatkuu -> anna vuoro AI:lle
-  }
-  return false;              // ei loppukierrosta
-}
 
+
+function spendFinalPlacement(){ if(state.finalPlacements!=null){ state.finalPlacements--; if(state.finalPlacements<=0){ endGame(); return true; } } return false; }
 
 function aiTurn(){
   if(state.gameOver) return;
@@ -1105,24 +926,25 @@ function aiTurn(){
     return;
   }
 
-  // 3) Normal draw phase
-  const draw = aiChooseDraw();
-  if (draw.kind === 'discard') {
-    const ok = drawFromDiscard(state.ai, draw.suit);
-    if (ok) {
-      renderAll(`AI nosti poistosta ${prettyCard(ok)}.`);
-    } else {
-      // Fallback pakkaan jos pino olikin tyhjä
-      drawFromDeck(state.ai);
-      renderAll('AI nosti pakasta (fallback).');
-    }
+// 3) Normal draw phase
+const draw = aiChooseDraw();
+if (draw.kind === 'discard') {
+  const ok = drawFromDiscard(state.ai, draw.suit);
+  if (ok) {
+     renderAll(`AI nosti poistosta ${prettyCard(ok)}.`);
   } else {
+    // Fallback pakkaan jos pino olikin tyhjä
     drawFromDeck(state.ai);
-    renderAll('AI nosti pakasta.');
+    renderAll('AI nosti pakasta (fallback).');
   }
+} else {
+  drawFromDeck(state.ai);
+  renderAll('AI nosti pakasta.');
+}
 
   // Nollaa 'justDiscarded' vuoron lopussa
   state.ai.justDiscarded = null;
+
 
   // 4) Hand back to player
   state.turn='player'; state.phase='play';
@@ -1130,16 +952,19 @@ function aiTurn(){
   renderAll();
 }
 
+
 /* events */
 document.getElementById('newGameBtn').addEventListener('click', deal);
 (function(){ const d=new Date(); const fmt=new Intl.DateTimeFormat('fi-FI',{day:'2-digit',month:'2-digit',year:'numeric'}); document.getElementById('date').textContent=fmt.format(d); })();
 deal();
+
 
 // === inline status append helper (no line break) ===
 function appendStatusInline(msg){
   try{
     var el = (typeof statusEl!=='undefined' && statusEl) ? statusEl : document.getElementById('status');
     if(!el) return;
-    el.innerHTML = (el.innerHTML ? el.innerHTML + ' – ' : '') + msg;
+    el.innerHTML = (el.innerHTML ? el.innerHTML + ' — ' : '') + msg;
   }catch(e){ /* no-op */ }
 }
+
