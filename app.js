@@ -214,7 +214,7 @@ function scoreExp(exp){
 
   // Oikea järjestys: kerroin ensin, sitten -20
   let pts = sum * mult - 20;
-  if (cardCount >= 8) pts += 20;  // +20 bonus pitkälle retkelle
+  if (cardCount >= 7) pts += 20;  // +20 bonus pitkälle retkelle
 
   return pts;
 }
